@@ -15,37 +15,6 @@ transform.names <- function(feature.names) {
     result <- str_replace_all(result, "-mean\\(\\)", "Mean")
     result <-
         str_replace_all(result, "-std\\(\\)", "Standard Deviation")
-    result <-
-        str_replace_all(result, "-mad\\(\\)", "Median Absolute Deviation")
-    result <- str_replace_all(result, "-max\\(\\)", "Maximum")
-    result <- str_replace_all(result, "-min\\(\\)", "Minimum")
-    result <-
-        str_replace_all(result, "-sma\\(\\)", "Signal Magnitude Area")
-    result <-
-        str_replace_all(result, "-energy\\(\\)", "Energy Measure")
-    result <-
-        str_replace_all(result, "-iqr\\(\\)", "Interquartile Range")
-    result <-
-        str_replace_all(result, "-entropy\\(\\)", "Signal Entropy")
-    result <-
-        str_replace_all(result, "-arCoeff\\(\\)", "Autoregression Coefficient")
-    result <-
-        str_replace_all(result, "-correlation\\(\\)", "Correlation Coefficient")
-    result <-
-        str_replace_all(result, "-maxInds\\(\\)", "Largest Magnitude Index")
-    result <-
-        str_replace_all(result, "-maxInds", "Largest Magnitude Index")
-    result <-
-        str_replace_all(result, "-meanFreq\\(\\)", "Mean Frequency")
-    result <- str_replace_all(result, "-skewness\\(\\)", "Skewness")
-    result <- str_replace_all(result, "-kurtosis\\(\\)", "Kurtosis")
-    result <-
-        str_replace_all(result, "-bandsEnergy\\(\\)", "Frequency Interval Energy")
-    result <-
-        str_replace_all(result,
-                        "^(angle)\\((.*),(.*)\\)$",
-                        "Angle between \\2 and \\3")
-    result <- str_replace_all(result, "\\)", "")
     result
 }
 
@@ -59,19 +28,17 @@ if (!file.exists(destFile)) {
         "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
     download.file(fileUrl, destfile = "./data/dataset.zip", method = "curl")
     dateDownloaded <- date()
-    print(list.files("./data/"))
-    print(dateDownloaded)
+    print(paste("Download date:", dateDownloaded))
 }
 
 if (!file.exists("./data/UCI HAR Dataset")) {
-    unzip("./data/dataset.zip", exdir = "./data/")
+    unzip("./data/dataset.zip", exdir = "data")
 }
 
 dataDir <- "./data/UCI HAR Dataset/"
-print(list.files(dataDir))
 
 get.df <- function(fileName) {
-    read.table(paste(dataDir, fileName, sep = ""), sep = " ")
+    read.table(paste(dataDir, fileName, sep = ""), sep = "")
 }
 
 get.labels <- function(fileName) {
@@ -81,7 +48,22 @@ get.labels <- function(fileName) {
 
 activityLabels <- get.labels("activity_labels.txt")
 print(activityLabels)
-featureNames <- get.labels("features.txt")
-featureNames <- transform.names(featureNames)
+originalFeatureNames <- get.labels("features.txt")
+selectedFeatureNames <-
+    grep("^.*(-mean\\(\\)|-std\\(\\)).*$",
+         originalFeatureNames,
+         value = TRUE)
+featureNames <- transform.names(selectedFeatureNames)
 print(featureNames)
 print(length(featureNames))
+
+get.data.df <- function(file.path) {
+    df <- get.df(file.path)
+    colnames(df) <- originalFeatureNames
+    df <- df[, selectedFeatureNames]
+    colnames(df) <- featureNames
+    df
+}
+
+trainDf <- get.data.df("train/X_train.txt")
+testDf <- get.data.df("test/X_test.txt")
