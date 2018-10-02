@@ -1,5 +1,6 @@
 #!/usr/bin/Rscript
 
+library(dplyr)
 library(stringr)
 
 transform.names <- function(feature.names) {
@@ -15,6 +16,9 @@ transform.names <- function(feature.names) {
     result <- str_replace_all(result, "-mean\\(\\)", "Mean")
     result <-
         str_replace_all(result, "-std\\(\\)", "Standard Deviation")
+    result <- str_replace_all(result, "-X", " \\(X Direction\\)")
+    result <- str_replace_all(result, "-Y", " \\(Y Direction\\)")
+    result <- str_replace_all(result, "-Z", " \\(Z Direction\\)")
     result
 }
 
@@ -47,23 +51,40 @@ get.labels <- function(fileName) {
 }
 
 activityLabels <- get.labels("activity_labels.txt")
-print(activityLabels)
 originalFeatureNames <- get.labels("features.txt")
 selectedFeatureNames <-
     grep("^.*(-mean\\(\\)|-std\\(\\)).*$",
          originalFeatureNames,
          value = TRUE)
 featureNames <- transform.names(selectedFeatureNames)
-print(featureNames)
-print(length(featureNames))
 
-get.data.df <- function(file.path) {
-    df <- get.df(file.path)
+file.suffix <- ".txt"
+
+get.file.name <- function(data.type, file.part) {
+    file.prefix <- paste(data.type, "/", sep = "")
+    paste(paste(paste(file.prefix, file.part, sep = ""), data.type, sep = ""), file.suffix, sep = "")
+}
+
+get.data.df <- function(data.type) {
+    file.name <- get.file.name(data.type, "X_")
+    df <- get.df(file.name)
     colnames(df) <- originalFeatureNames
     df <- df[, selectedFeatureNames]
     colnames(df) <- featureNames
+    subject.name <- get.file.name(data.type, "subject_")
+    subject.df <- get.df(subject.name)
+    df['Subject ID'] <- subject.df[1]
+    y.name <- get.file.name(data.type, "y_")
+    y.df <- get.df(y.name)
+    y <- lapply(y.df[1], function(x) {
+        activityLabels[x]
+    })
+    df['Activity'] <- y
+    df <- df %>% select("Subject ID", "Activity", everything())
     df
 }
 
-trainDf <- get.data.df("train/X_train.txt")
-testDf <- get.data.df("test/X_test.txt")
+trainDf <- get.data.df("train")
+testDf <- get.data.df("test")
+df.1 <- rbind(trainDf, testDf)
+write.table(df.1, paste("./data/", "df.1.txt", sep = ""))
