@@ -6,8 +6,6 @@ library(stringr)
 transform.names <- function(feature.names) {
     result <- str_replace_all(feature.names, "^(t)(.*)", "Time \\2")
     result <- str_replace_all(result, "^(f)(.*)", "Frequency \\2")
-    result <-
-        str_replace_all(result, "^(angle\\(t)(.*)", "angle(Time \\2")
     result <- str_replace_all(result, "Acc", "Accelerometer ")
     result <- str_replace_all(result, "Gyro", "Gyroscope ")
     result <- str_replace_all(result, "Body", "Body ")
@@ -22,24 +20,30 @@ transform.names <- function(feature.names) {
     result
 }
 
-if (!file.exists("data")) {
-    dir.create("data")
+rootDataDir <- "data"
+
+if (!file.exists(rootDataDir)) {
+    dir.create(rootDataDir)
 }
 
-destFile <- "./data/dataset.zip"
+dirPrefix <- "./"
+
+destFile <- paste(dirPrefix, rootDataDir, "/dataset.zip", sep = "")
+
 if (!file.exists(destFile)) {
     fileUrl <-
         "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-    download.file(fileUrl, destfile = "./data/dataset.zip", method = "curl")
+    download.file(fileUrl, destfile = destFile, method = "curl")
     dateDownloaded <- date()
     print(paste("Download date:", dateDownloaded))
 }
 
-if (!file.exists("./data/UCI HAR Dataset")) {
-    unzip("./data/dataset.zip", exdir = "data")
-}
+dataDir <-
+    paste(dirPrefix, rootDataDir, "/UCI HAR Dataset/", sep = "")
 
-dataDir <- "./data/UCI HAR Dataset/"
+if (!file.exists(dataDir)) {
+    unzip(destFile, exdir = rootDataDir)
+}
 
 get.df <- function(fileName) {
     read.table(paste(dataDir, fileName, sep = ""), sep = "")
@@ -62,7 +66,7 @@ file.suffix <- ".txt"
 
 get.file.name <- function(data.type, file.part) {
     file.prefix <- paste(data.type, "/", sep = "")
-    paste(paste(paste(file.prefix, file.part, sep = ""), data.type, sep = ""), file.suffix, sep = "")
+    paste(file.prefix, file.part, data.type, file.suffix, sep = "")
 }
 
 get.data.df <- function(data.type) {
@@ -84,7 +88,22 @@ get.data.df <- function(data.type) {
     df
 }
 
+add.record.id <- function(df) {
+    df["Record ID"] <- 1:nrow(df)
+    df2 <- df %>% select("Record ID", everything())
+    df2
+}
+
 trainDf <- get.data.df("train")
 testDf <- get.data.df("test")
 df.1 <- rbind(trainDf, testDf)
-write.table(df.1, paste("./data/", "df.1.txt", sep = ""))
+df.1 <- add.record.id(df.1)
+write.table(df.1,
+            paste(dirPrefix, "df.1.txt", sep = ""),
+            row.names = FALSE)
+df.2 <-
+    df.1 %>% select(-c(`Record ID`)) %>% group_by(`Subject ID`, Activity) %>% summarise_all("mean")
+df.2 <- add.record.id(df.2)
+write.table(df.2,
+            paste(dirPrefix, "df.2.txt", sep = ""),
+            row.names = FALSE)
